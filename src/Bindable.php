@@ -73,11 +73,6 @@ trait Bindable {
 					$iterable[$key] = $value;
 				}
 			}
-			else {
-				throw new UnbindableObjectException(
-					get_class($kvp)
-				);
-			}
 		}
 
 		foreach($iterable as $key => $value) {
@@ -105,7 +100,7 @@ trait Bindable {
 	 * @see self::bindNestedList
 	 */
 	public function bindList(
-		iterable $kvpList,
+		iterable $data,
 		string $templateName = null
 	):int {
 		/** @var BaseElement $element */
@@ -131,7 +126,7 @@ trait Bindable {
 		}
 
 		$i = 0;
-		foreach($kvpList as $data) {
+		foreach($data as $key => $value) {
 			$i++;
 			$t = $templateElement->cloneNode(true);
 
@@ -139,13 +134,20 @@ trait Bindable {
 				$templateParent = $templateElement->templateParentNode;
 			}
 
-			$t->bindData($data);
-			$fragment->appendChild($t);
-		}
+			if(is_string($key)) {
+				$t->bindValue($key);
+			}
+			if(is_string($value)) {
+				$t->bindValue($value);
+			}
 
-		global $test;
-		if($test) {
-			var_dump($templateParent->getNodePath());die();
+			$t->bindData($value);
+			/** @var Element $insertedTemplate */
+			$insertedTemplate = $fragment->appendChild($t);
+
+			if(is_iterable($value)) {
+				$insertedTemplate->bindList($value);
+			}
 		}
 
 		if(!is_null($templateParent)) {
@@ -153,53 +155,6 @@ trait Bindable {
 		}
 
 		return $i;
-	}
-
-	/**
-	 * When complex data needs binding to a nested DOM structure, a
-	 * BindIterator is necessary to link each child list with the
-	 * correct template.
-	 */
-	public function bindNestedList(
-		iterable $data,
-		bool $requireMatchingTemplatePath = false
-	):void {
-		/** @var BaseElement $element */
-		$element = $this;
-		if($element instanceof HTMLDocument) {
-			$element = $element->documentElement;
-		}
-		/** @var HTMLDocument $document */
-		$document = $element->ownerDocument;
-
-		$templateParent = $document->getParentOfUnnamedTemplate(
-			$element,
-			$requireMatchingTemplatePath
-		);
-
-		foreach($data as $key => $value) {
-			$t = $document->getUnnamedTemplate(
-				$templateParent,
-				false
-			);
-
-			if(is_string($key)) {
-				$t->bindValue($key);
-			}
-
-			if(is_string($value)) {
-				$t->bindValue($value);
-			}
-
-			$insertedTemplate = $templateParent->appendChild($t);
-
-			if(is_iterable($value)) {
-				$insertedTemplate->bindNestedList(
-					$value,
-					true
-				);
-			}
-		}
 	}
 
 	/**
