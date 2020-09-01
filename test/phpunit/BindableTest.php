@@ -1,7 +1,6 @@
 <?php /** @noinspection PhpComposerExtensionStubsInspection */
 namespace Gt\DomTemplate\Test;
 
-use EmptyIterator;
 use Gt\DomTemplate\IncompatibleBindDataException;
 use Gt\DomTemplate\BoundAttributeDoesNotExistException;
 use Gt\DomTemplate\BoundDataNotSetException;
@@ -298,7 +297,7 @@ class BindableTest extends TestCase {
 	public function testBindObjectValueParameter() {
 		$dataObj = new StdClass();
 		$dataObj->userId = 123;
-		$dataObj->username = "Testname";
+		$dataObj->username = "TestName";
 
 		$document = new HTMLDocument(Helper::HTML_ATTRIBUTE_PLACEHOLDERS);
 		$document->bindData($dataObj);

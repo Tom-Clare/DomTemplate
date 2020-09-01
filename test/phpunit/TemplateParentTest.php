@@ -49,7 +49,7 @@ class TemplateParentTest extends TestCase {
 		self::assertGreaterThan(0, count($templateElements));
 		$document->extractTemplates();
 		$newTemplateElements = $document->querySelectorAll("template,[data-template]");
-		self::assertEquals(0, count($newTemplateElements));
+		self::assertCount(0, $newTemplateElements);
 	}
 
 	public function testGetTemplate() {
@@ -144,7 +144,7 @@ class TemplateParentTest extends TestCase {
 	}
 
 	public function testNestedComponentsExpand() {
-		// While the count of the expandCompnents > 0, do it again on the expanded component...
+		// While the count of the expandComponents > 0, do it again on the expanded component...
 		$templateDir = self::TEST_DIR . "/" . self::COMPONENT_PATH;
 		file_put_contents(
 			"$templateDir/ordered-list.html",
@@ -220,7 +220,7 @@ class TemplateParentTest extends TestCase {
 	}
 
 	public function testNestedComponentsExpandWhenTemplateInserted() {
-		// While the count of the expandCompnents > 0, do it again on the expanded component...
+		// While the count of the expandComponents > 0, do it again on the expanded component...
 		$templateDir = self::TEST_DIR . "/" . self::COMPONENT_PATH;
 		file_put_contents(
 			"$templateDir/title-definition-list.html",
