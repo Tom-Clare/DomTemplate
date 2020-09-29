@@ -26,8 +26,9 @@ jobs:
           path: ./
 
       - name: PHP Unit tests
-        uses: php-actions/phpunit@v9
+        uses: php-actions/phpunit@master
         with:
+          php_version: 8.0
           configuration: test/phpunit/phpunit.xml
 
   phpstan:
