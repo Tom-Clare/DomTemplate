@@ -28,6 +28,7 @@ jobs:
       - name: PHP Unit tests
         uses: php-actions/phpunit@17-php-versions
         with:
+          bootstrap: vendor/autoload.php
           configuration: test/phpunit/phpunit.xml
 
   phpstan:
