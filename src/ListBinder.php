@@ -16,7 +16,7 @@ class ListBinder {
 	) {
 	}
 
-	/** @param Iterator<mixed> $listData */
+	/** @param iterable<mixed> $listData */
 	public function bindListData(
 		iterable $listData,
 		Document|Element $context,

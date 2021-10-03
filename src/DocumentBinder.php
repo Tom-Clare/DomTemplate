@@ -90,7 +90,7 @@ class DocumentBinder {
 	}
 
 	/**
-	 * @param Iterator<mixed> $listData
+	 * @param iterable<mixed> $listData
 	 */
 	public function bindList(
 		iterable $listData,
