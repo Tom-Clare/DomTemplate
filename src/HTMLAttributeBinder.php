@@ -25,7 +25,7 @@ class HTMLAttributeBinder {
 
 			if(!strstr($attrName, ":")) {
 				$tag = $this->getHTMLTag($element);
-				throw new InvalidBindPropertyException("$tag Element has a data-bind attribute with missing bind property - did you mean `data-bind:text`?");
+				throw new InvalidBindPropertyException("$tag Element has a data-bind attribute with missing bind property - did you mean `data-bind:text`? For help, see https://www.php.gt/domtemplate/binding");
 			}
 
 			$modifier = null;
