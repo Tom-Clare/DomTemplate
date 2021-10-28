@@ -1,12 +1,15 @@
 <?php
 namespace Gt\DomTemplate\Test;
 
+use Gt\Dom\HTMLCollection;
 use Gt\Dom\HTMLElement\HTMLTableCellElement;
 use Gt\Dom\HTMLElement\HTMLTableElement;
 use Gt\Dom\HTMLElement\HTMLTableRowElement;
 use Gt\Dom\HTMLElement\HTMLTableSectionElement;
+use Gt\DomTemplate\ElementBinder;
 use Gt\DomTemplate\IncorrectTableDataFormat;
 use Gt\DomTemplate\TableBinder;
+use Gt\DomTemplate\TemplateCollection;
 use Gt\DomTemplate\Test\TestFactory\DocumentTestFactory;
 use PHPUnit\Framework\TestCase;
 
@@ -372,5 +375,48 @@ class TableBinderTest extends TestCase {
 		$sut->bindTableData($tableData, $document);
 
 		self::assertCount(4, $document->querySelectorAll("table tr"));
+	}
+
+	public function testBindTableData_keysMatchThValues():void {
+		$tableData = [
+			[
+				"ID" => 55,
+				"Forename" => "Carlos",
+				"Surname" => "Sainz",
+				"Country" => "Spain",
+			],
+// Note that the order of the fields here is different, to test that they are
+// matched correctly to the corresponding TH order.
+			[
+				"Surname" => "Vettel",
+				"Forename" => "Sebastian",
+				"ID" => 5,
+				"Country" => "Germany",
+			],
+		];
+
+		$document = DocumentTestFactory::createHTML(DocumentTestFactory::HTML_TABLE_CRUD);
+		$templateCollection = new TemplateCollection($document);
+		$elementBinder = new ElementBinder();
+		$sut = new TableBinder($templateCollection, $elementBinder);
+		$sut->bindTableData($tableData, $document);
+
+		$thCollection = $document->querySelectorAll("thead>tr>th");
+		/** @var HTMLCollection<HTMLTableRowElement> $bodyTrCollection */
+		$bodyTrCollection = $document->querySelectorAll("tbody>tr");
+		self::assertCount(count($tableData), $bodyTrCollection);
+
+		foreach($thCollection as $i => $th) {
+			$key = $th->textContent;
+
+			/** @var HTMLTableRowElement $tr */
+			foreach($bodyTrCollection as $j => $tr) {
+				$td = $tr->cells[$i];
+				$expectedValue = $tableData[$j][$key];
+
+				$textContent = $td->textContent;
+				self::assertEquals($expectedValue, $textContent);
+			}
+		}
 	}
 }

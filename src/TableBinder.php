@@ -10,6 +10,18 @@ use Gt\Dom\HTMLElement\HTMLTableSectionElement;
 use Stringable;
 
 class TableBinder {
+	private ?ElementBinder $elementBinder;
+	private ?BindableCache $bindableCache;
+
+	public function __construct(
+		private ?TemplateCollection $templateCollection = null,
+		?ElementBinder $elementBinder = null,
+		?BindableCache $bindableCache = null
+	) {
+		$this->elementBinder = $elementBinder;
+		$this->bindableCache = $bindableCache;
+	}
+
 	/**
 	 * @param array<int, array<int, string>>|array<int, array<int|string, string|array<int, mixed>>> $tableData
 	 * @param Element $context
@@ -18,12 +30,11 @@ class TableBinder {
 		array $tableData,
 		Document|Element $context
 	):void {
-		$tableData = $this->normaliseTableData($tableData);
-
 		if($context instanceof Document) {
 			$context = $context->documentElement;
 		}
 
+		/** @var array<HTMLTableElement> $tableArray */
 		$tableArray = [$context];
 		if(!$context instanceof HTMLTableElement) {
 			$tableArray = [];
@@ -36,27 +47,33 @@ class TableBinder {
 			throw new TableElementNotFoundInContextException();
 		}
 
-		$headerRow = array_shift($tableData);
+		/** @var null|HTMLTableRowElement $theadTrElement */
+		$theadTrElement = $tableArray[0]->tHead->rows[0];
+		$tableData = $this->normaliseTableData(
+			$tableData,
+			$theadTrElement
+		);
+
+		if($theadTrElement) {
+			$headerRow = [];
+			foreach($theadTrElement->cells as $cell) {
+				array_push(
+					$headerRow,
+					$cell->hasAttribute("data-table-key")
+						? $cell->getAttribute("data-table-key")
+						: trim($cell->textContent)
+				);
+			}
+		}
+		else {
+			$headerRow = array_shift($tableData);
+		}
+
 		foreach($tableArray as $table) {
 			/** @var HTMLTableElement $table */
 
-			$allowedHeaders = $headerRow;
-
 			$tHead = $table->tHead;
-			if($tHead) {
-				$allowedHeaders = [];
-
-				/** @var HTMLTableRowElement $tHeadRow */
-				$tHeadRow = $tHead->rows[0];
-				foreach($tHeadRow->cells as $cell) {
-					/** @var HTMLTableCellElement $cell */
-					$headerKey = $cell->hasAttribute("data-table-key")
-						? $cell->getAttribute("data-table-key")
-						: trim($cell->textContent);
-					array_push($allowedHeaders, $headerKey);
-				}
-			}
-			else {
+			if(!$tHead) {
 				$tHead = $table->createTHead();
 				$theadTr = $tHead->insertRow();
 
@@ -73,12 +90,19 @@ class TableBinder {
 			}
 
 			foreach($tableData as $rowData) {
-				$tr = $tbody->insertRow();
+				$template = null;
+
+				try {
+					$template = $this->templateCollection->get($tbody);
+					$tr = $template->insertTemplate();
+				}
+				catch(TemplateElementNotFoundInContextException) {
+					$tr = $tbody->insertRow();
+				}
 				/** @var int|string|null $firstKey */
 				$firstKey = key($rowData);
 
-				foreach($allowedHeaders as $allowedHeader) {
-					$rowIndex = array_search($allowedHeader, $headerRow);
+				foreach($headerRow as $rowIndex => $header) {
 					$cellTypeToCreate = "td";
 
 					if(is_string($firstKey)) {
@@ -94,9 +118,15 @@ class TableBinder {
 						$columnValue = $rowData[$rowIndex];
 					}
 
-					$cellElement = $tr->ownerDocument->createElement($cellTypeToCreate);
-					$cellElement->textContent = $columnValue;
-					$tr->appendChild($cellElement);
+					if($template) {
+						$tr->cells[$rowIndex]->textContent = $columnValue;
+					}
+					else {
+						$cellElement = $tr->ownerDocument->createElement($cellTypeToCreate);
+						$cellElement->textContent = $columnValue;
+						$tr->appendChild($cellElement);
+					}
+
 				}
 			}
 		}
@@ -105,20 +135,25 @@ class TableBinder {
 	/**
 	 * @param iterable<int,iterable<int,string>>|iterable<string,iterable<int, string>>|iterable<string,iterable<string, iterable<int, string>>> $bindValue
 	 * The three structures allowed by this method are:
-	 * 1) If $bindValue has int keys, the first value must represent an
-	 * iterable of columnHeaders, and subsequent values must represent an
-	 * iterable of columnValues.
+	 * 1) If $bindValue has int keys and non-iterable values, the first
+	 * value must represent an iterable of columnHeaders, and subsequent
+	 * values must represent an iterable of columnValues.
 	 * 2) If $bindValue has string keys, the keys must represent the column
 	 * headers and the value must be an iterable of columnValues.
 	 * 3) If columnValues has int keys, each item represents the value of
 	 * a column <td> element.
 	 * 4) If columnValues has a string keys, each key represents a <th> and
 	 * each sub-iterable represents the remaining column values.
+	 * @param ?HTMLTableRowElement $theadTrElement The first <tr> element
+	 * within the first <thead> of the first <table> in the context, if any.
 	 * @return array<int, array<int|string, string|Stringable>> A
 	 * two-dimensional array where the outer array represents the rows, the
 	 * inner array represents the columns.
 	 */
-	private function normaliseTableData(iterable $bindValue):array {
+	private function normaliseTableData(
+		iterable $bindValue,
+		?HTMLTableRowElement $theadTrElement
+	):array {
 		$normalised = [];
 
 		reset($bindValue);
@@ -135,14 +170,17 @@ class TableBinder {
 // A string key within the inner array indicates "double header" table data.
 					if(is_string($j)) {
 						$doubleHeader = [$j => []];
-						if(!is_iterable($columnValue)) {
-							throw new IncorrectTableDataFormat("Row $i has a string key ($j) but the value is not iterable.");
+						if(is_iterable($columnValue)) {
+							foreach($columnValue as $cellValue) {
+								array_push($doubleHeader[$j], $cellValue);
+							}
+							array_push($normalised, $doubleHeader);
+						}
+						else {
+							$row = $value;
+							break;
 						}
 
-						foreach($columnValue as $cellValue) {
-							array_push($doubleHeader[$j], $cellValue);
-						}
-						array_push($normalised, $doubleHeader);
 					}
 					else {
 						array_push($row, $columnValue);
@@ -174,6 +212,46 @@ class TableBinder {
 			array_push($normalised, ...$rows);
 		}
 
+		if(!$this->arrayContainsOnlyLists($normalised)) {
+// TODO: Throw if $theadTrElement is null at this point.
+			$headerFields = [];
+			foreach($theadTrElement->cells as $cell) {
+				array_push($headerFields, trim($cell->textContent));
+			}
+
+			$fixedNormalised = [];
+			foreach($normalised as $kvp) {
+				$row = [];
+				foreach($kvp as $key => $value) {
+					$index = array_search($key, $headerFields) ?? 0;
+					$row[$index] = $value;
+				}
+				ksort($row);
+				array_push(
+					$fixedNormalised,
+					$row
+				);
+// TODO: Throw exception if index is not found.
+			}
+
+			$normalised = $fixedNormalised;
+		}
+
 		return $normalised;
+	}
+
+	private function arrayContainsOnlyLists(array $normalised):bool {
+		foreach($normalised as $array) {
+			$index = 0;
+			foreach($array as $key => $value) {
+				if($key !== $index) {
+					return false;
+				}
+
+				$index ++;
+			}
+		}
+
+		return true;
 	}
 }
