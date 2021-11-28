@@ -319,6 +319,12 @@ HTML;
 	<p>For more information, <a href="https://www.php.gt/{{repoName ?? domtemplate}}">view the docs.</a></p>
 </main>
 HTML;
+
+	const HTML_PLACEHOLDER_MULTIPLE = <<<HTML
+<!doctype html>
+<p>This project's user page: <a href="/project/{{projectId}}/user/{{userId}}">Click here!</a></p>
+HTML;
+
 	const HTML_MUSIC_EXPLICIT_TEMPLATE_NAMES = <<<HTML
 <!doctype html>
 <h1>Music library</h1>

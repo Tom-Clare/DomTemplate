@@ -46,4 +46,15 @@ class PlaceholderBinderTest extends TestCase {
 		$sut->bind("repoName", "domtemplate", $testElement);
 		self::assertSame("https://www.php.gt/domtemplate", $link->href);
 	}
+
+	public function testBind_multipleInSameAttribute():void {
+		$document = DocumentTestFactory::createHTML(DocumentTestFactory::HTML_PLACEHOLDER_MULTIPLE);
+		$sut = new PlaceholderBinder();
+		/** @var HTMLAnchorElement $testElement */
+		$testElement = $document->links[0];
+		$sut->bind("projectId", 123, $document);
+		$sut->bind("userId", 456, $document);
+
+		self::assertSame("/project/123/user/456", $testElement->href);
+	}
 }
